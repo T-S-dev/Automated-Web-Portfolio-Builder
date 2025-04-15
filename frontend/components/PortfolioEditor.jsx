@@ -8,28 +8,28 @@ const PortfolioEditor = ({ portfolio, mode, onCancel }) => {
   const iframeRef = useRef(null);
   const [livePreviewUrl, setLivePreviewUrl] = useState(null);
   const [portfolioData, setPortfolioData] = useState(portfolio);
+  const [iframeReady, setIframeReady] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setLivePreviewUrl(window.location.origin + "/live-preview");
     }
-  }, []);
 
-  useEffect(() => {
-    const sendDataToIframe = () => {
-      if (iframeRef.current && portfolioData) {
-        iframeRef.current.contentWindow.postMessage({ portfolioData }, livePreviewUrl);
+    const handleIframeReady = (event) => {
+      if (event.data?.status === "ready") {
+        setIframeReady(true);
       }
     };
 
-    if (iframeRef.current) {
-      iframeRef.current.addEventListener("load", () => {
-        sendDataToIframe();
-      });
-    }
+    window.addEventListener("message", handleIframeReady);
+    return () => window.removeEventListener("message", handleIframeReady);
+  }, []);
 
-    sendDataToIframe();
-  }, [portfolioData, iframeRef.current]);
+  useEffect(() => {
+    if (iframeReady && iframeRef.current && portfolioData && livePreviewUrl) {
+      iframeRef.current.contentWindow.postMessage({ portfolioData }, livePreviewUrl);
+    }
+  }, [iframeReady, portfolioData, livePreviewUrl]);
 
   return (
     <div className="flex flex-1 gap-4 p-4">
