@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BoldIcon, ItalicIcon, UnderlineIcon } from "lucide-react";
 import sanitizeHtml from "sanitize-html";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -19,7 +19,7 @@ import { sanitizeOptions } from "@/lib/utils";
 
 const DEFAULT_COLOR = "#f8fafc";
 
-const RTEditor = ({ name, setValue, defaultValue }) => {
+const RTEditor = ({ name, setValue, content, extraToolbarButtons = [] }) => {
   const [color, setColor] = useState(DEFAULT_COLOR);
 
   const editor = useEditor({
@@ -33,7 +33,7 @@ const RTEditor = ({ name, setValue, defaultValue }) => {
       TextStyle,
       Color.configure({ types: ["textStyle"] }),
     ],
-    content: defaultValue,
+    content,
     editorProps: {
       attributes: {
         class: "focus:outline-none min-h-24",
@@ -52,13 +52,19 @@ const RTEditor = ({ name, setValue, defaultValue }) => {
     },
   });
 
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content, true);
+    }
+  }, [content, editor]);
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className="mt-2 flex flex-col rounded-md border p-2">
-      <div className="mb-2 flex space-x-2">
+      <div className="mb-2 flex flex-wrap gap-2">
         <Button
           variant="ghost"
           aria-label="Toggle Bold"
@@ -112,6 +118,10 @@ const RTEditor = ({ name, setValue, defaultValue }) => {
         >
           Reset Color
         </Button>
+
+        {extraToolbarButtons.map((Btn, i) => (
+          <div key={i}>{Btn}</div>
+        ))}
       </div>
       <EditorContent editor={editor} className="rounded-lg border p-2" />
     </div>
