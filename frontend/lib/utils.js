@@ -31,3 +31,10 @@ export function formatUrl(url) {
   }
   return url;
 }
+
+export const sanitizeOptions = {
+  allowedTags: ["strong", "em", "u", "p", "span"],
+  allowedAttributes: {
+    span: ["style"],
+  },
+};

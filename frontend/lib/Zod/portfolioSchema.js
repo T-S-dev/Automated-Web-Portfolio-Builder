@@ -1,14 +1,9 @@
 import { z } from "zod";
 import { formatUrl } from "@/lib/utils";
 import sanitizeHtml from "sanitize-html";
+import { sanitizeOptions } from "@/lib/utils";
 
-const sanitizeRichText = (val) =>
-  sanitizeHtml(val || "", {
-    allowedTags: ["strong", "em", "u", "p", "span"],
-    allowedAttributes: {
-      span: ["style"],
-    },
-  });
+const sanitizeRichText = (val) => sanitizeHtml(val || "", sanitizeOptions);
 
 export const PortfolioSchema = z.object({
   template: z.number().min(1, "Template is required"),

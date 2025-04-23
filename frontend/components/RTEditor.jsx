@@ -15,6 +15,8 @@ import Underline from "@tiptap/extension-underline";
 
 import { Button } from "@/components/ui/button";
 
+import { sanitizeOptions } from "@/lib/utils";
+
 const DEFAULT_COLOR = "#f8fafc";
 
 const RTEditor = ({ name, setValue, defaultValue }) => {
@@ -40,12 +42,7 @@ const RTEditor = ({ name, setValue, defaultValue }) => {
     immediatelyRender: false,
     onUpdate({ editor }) {
       const dirtyHtml = editor.getHTML();
-      const cleanHtml = sanitizeHtml(dirtyHtml, {
-        allowedTags: ["strong", "em", "u", "p", "span"],
-        allowedAttributes: {
-          span: ["style"],
-        },
-      });
+      const cleanHtml = sanitizeHtml(dirtyHtml, sanitizeOptions);
       // If the editor is empty (only contains a paragraph tag with no content), set the value to an empty string
       if (cleanHtml === "<p></p>") {
         setValue(name, "");
