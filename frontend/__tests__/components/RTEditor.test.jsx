@@ -22,6 +22,7 @@ const mockEditor = {
   chain: () => mockChain,
   isActive: () => false,
   getHTML: () => "",
+  commands: { setContent: jest.fn() },
 };
 
 describe("RTEditor", () => {
