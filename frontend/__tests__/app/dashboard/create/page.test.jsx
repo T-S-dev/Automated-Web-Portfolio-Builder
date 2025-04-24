@@ -1,15 +1,22 @@
-import { render, screen, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import CreatePortfolioPage from "@/app/dashboard/create/page";
 import { currentUser } from "@clerk/nextjs/server";
-import getPortfolio from "@/lib/getPortfolio";
 import { redirect } from "next/navigation";
+import { mongooseConnect } from "@/lib/mongoose";
+import Portfolio from "@/models/Portfolio";
 
 jest.mock("@clerk/nextjs/server", () => ({
   currentUser: jest.fn(),
 }));
 
-jest.mock("@/lib/getPortfolio");
+jest.mock("@/lib/mongoose", () => ({
+  mongooseConnect: jest.fn(),
+}));
+
+jest.mock("@/models/Portfolio", () => ({
+  exists: jest.fn(),
+}));
 
 jest.mock("next/navigation", () => ({
   redirect: jest.fn(),
@@ -24,27 +31,21 @@ describe("CreatePortfolioPage", () => {
   });
 
   test("redirects to /dashboard if an existing portfolio is found", async () => {
-    getPortfolio.mockResolvedValueOnce({ title: "My Portfolio" });
+    Portfolio.exists.mockResolvedValueOnce(true);
 
-    await act(async () => {
-      await CreatePortfolioPage();
-    });
+    await CreatePortfolioPage();
 
+    expect(mongooseConnect).toHaveBeenCalled();
+    expect(Portfolio.exists).toHaveBeenCalledWith({ username: "john123" });
     expect(redirect).toHaveBeenCalledWith("/dashboard");
   });
 
   test("renders CreatePortfolioClient if no existing portfolio is found", async () => {
-    getPortfolio.mockResolvedValueOnce(null);
+    Portfolio.exists.mockResolvedValueOnce(false);
 
-    let pageComponent;
-    await act(async () => {
-      pageComponent = await CreatePortfolioPage();
-    });
-
-    render(pageComponent);
+    render(await CreatePortfolioPage());
 
     expect(screen.getByText("Create Portfolio Client Mock")).toBeInTheDocument();
-
     expect(redirect).not.toHaveBeenCalled();
   });
 });
