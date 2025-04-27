@@ -17,6 +17,16 @@ describe("Home Page", () => {
     expect(dashboardLink).toHaveAttribute("href", "/dashboard");
   });
 
+  test("renders the See It In Action section correctly", () => {
+    render(<Home />);
+
+    expect(screen.getByText("See It In Action")).toBeInTheDocument();
+    expect(screen.getByText("Watch how easy it is to create a portfolio.")).toBeInTheDocument();
+
+    const video = screen.getByLabelText("See It In Action Video");
+    expect(video).toBeInTheDocument();
+  });
+
   test("renders the How It Works section", () => {
     render(<Home />);
 
