@@ -71,7 +71,7 @@ const TemplateList = ({ getValues, setValue, errors }) => {
             if (!open) setPreviewTemplate(null);
           }}
         >
-          <DialogContent className="flex min-h-[90vh] min-w-[90vw] flex-col">
+          <DialogContent className="flex min-h-[90vh] min-w-[90vw] flex-col" showCloseButton={false}>
             <DialogHeader className="flex flex-row items-center justify-between">
               <DialogTitle className="text-2xl">Template {previewTemplate} Preview</DialogTitle>
               <div className="flex gap-2">
