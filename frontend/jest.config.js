@@ -20,5 +20,5 @@ const config = {
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
 module.exports = async () => ({
   ...(await createJestConfig(config)()),
-  transformIgnorePatterns: ["node_modules/(?!(lucide-react)/)"],
+  transformIgnorePatterns: ["node_modules/(?!(lucide-react|mongoose|mongodb|bson)/)"],
 });
