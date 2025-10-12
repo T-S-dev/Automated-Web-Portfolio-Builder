@@ -1,9 +1,16 @@
+import { useFormContext } from "react-hook-form";
 import CreatableSelect from "react-select/creatable";
 
 import selectStyles from "@/lib/selectStyles";
 import { handleSelectKeyDown } from "@/lib/utils";
 
-const SkillsSection = ({ setValue, getValues, errors }) => {
+const SkillsSection = () => {
+  const {
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useFormContext();
+
   const handleSkillChange = (path, selectedOptions) => {
     setValue(
       path,

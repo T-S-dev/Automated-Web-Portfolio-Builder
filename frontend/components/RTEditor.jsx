@@ -5,12 +5,11 @@ import { BoldIcon, ItalicIcon, UnderlineIcon } from "lucide-react";
 import sanitizeHtml from "sanitize-html";
 import { useEditor, EditorContent } from "@tiptap/react";
 import Bold from "@tiptap/extension-bold";
-import { Color } from "@tiptap/extension-color";
 import Document from "@tiptap/extension-document";
 import Italic from "@tiptap/extension-italic";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
-import TextStyle from "@tiptap/extension-text-style";
+import { TextStyle, Color } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 
 import { Button } from "@/components/ui/button";
@@ -53,8 +52,11 @@ const RTEditor = ({ name, setValue, content, extraToolbarButtons = [] }) => {
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content, true);
+    const isSame =
+      sanitizeHtml(editor?.getHTML() || "", sanitizeOptions) === sanitizeHtml(content || "", sanitizeOptions);
+
+    if (editor && !isSame) {
+      editor.commands.setContent(content, false, { emitUpdate: false });
     }
   }, [content, editor]);
 
@@ -104,7 +106,7 @@ const RTEditor = ({ name, setValue, content, extraToolbarButtons = [] }) => {
             onChange={(e) => {
               const selectedColor = e.target.value;
               setColor(selectedColor);
-              editor.chain().focus().setColor(selectedColor).run();
+              editor?.chain().focus().setColor(selectedColor).run();
             }}
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />

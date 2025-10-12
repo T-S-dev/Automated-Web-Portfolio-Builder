@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -31,18 +31,16 @@ const PortfolioForm = ({ portfolioData, setPortfolioData, onCancel, mode = "crea
   const router = useRouter();
   const { user } = useUser();
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors, isSubmitting },
-    setValue,
-    getValues,
-    watch,
-  } = useForm({
+  const methods = useForm({
     resolver: zodResolver(PortfolioSchema),
     defaultValues: { ...portfolioData, template: portfolioData?.template || 1 },
   });
+
+  const {
+    handleSubmit,
+    formState: { isSubmitting },
+    watch,
+  } = methods;
 
   const onSubmit = async (data) => {
     const toastId = toast.loading(mode === "create" ? "Creating portfolio..." : "Updating portfolio...");
@@ -75,72 +73,66 @@ const PortfolioForm = ({ portfolioData, setPortfolioData, onCancel, mode = "crea
   }, [watch]);
 
   return (
-    <div className="flex w-full flex-col">
-      <TemplateList getValues={getValues} setValue={setValue} errors={errors} />
+    <FormProvider {...methods}>
+      <div className="flex w-full flex-col">
+        <TemplateList />
 
-      <div className="flex w-full flex-1 flex-col rounded-md border bg-gray-900 p-6">
-        <h2 className="mb-4 text-2xl font-bold">{mode === "create" ? "Create" : "Edit"} Your Portfolio</h2>
+        <div className="flex w-full flex-1 flex-col rounded-md border bg-gray-900 p-6">
+          <h2 className="mb-4 text-2xl font-bold">{mode === "create" ? "Create" : "Edit"} Your Portfolio</h2>
 
-        <Accordion type="multiple" defaultValue={["personal"]} className="w-full flex-1">
-          <FormSection value="personal" title="Personal Information" icon={User} errors={errors}>
-            <PersonalSection register={register} errors={errors} />
-          </FormSection>
+          <Accordion type="multiple" defaultValue={["personal"]} className="w-full flex-1">
+            <FormSection value="personal" title="Personal Information" icon={User}>
+              <PersonalSection />
+            </FormSection>
 
-          <FormSection value="professional_summary" title="Professional Summary" icon={FileText} errors={errors}>
-            <ProfessionalSummarySection setValue={setValue} getValues={getValues} errors={errors} />
-          </FormSection>
+            <FormSection value="professional_summary" title="Professional Summary" icon={FileText}>
+              <ProfessionalSummarySection />
+            </FormSection>
 
-          <FormSection value="education" title="Education" icon={BookOpen} errors={errors}>
-            <EducationSection register={register} control={control} errors={errors} />
-          </FormSection>
+            <FormSection value="education" title="Education" icon={BookOpen}>
+              <EducationSection />
+            </FormSection>
 
-          <FormSection value="experience" title="Experience" icon={Briefcase} errors={errors}>
-            <ExperienceSection
-              control={control}
-              register={register}
-              setValue={setValue}
-              getValues={getValues}
-              errors={errors}
-            />
-          </FormSection>
+            <FormSection value="experience" title="Experience" icon={Briefcase}>
+              <ExperienceSection />
+            </FormSection>
 
-          <FormSection value="skills" title="Skills" icon={Wrench} errors={errors}>
-            <SkillsSection setValue={setValue} getValues={getValues} errors={errors} />
-          </FormSection>
+            <FormSection value="skills" title="Skills" icon={Wrench}>
+              <SkillsSection />
+            </FormSection>
 
-          <FormSection value="projects" title="Projects" icon={Folder} errors={errors}>
-            <ProjectsSection
-              control={control}
-              register={register}
-              setValue={setValue}
-              getValues={getValues}
-              errors={errors}
-            />
-          </FormSection>
+            <FormSection value="projects" title="Projects" icon={Folder}>
+              <ProjectsSection />
+            </FormSection>
 
-          <FormSection value="certifications" title="Certifications" icon={Award} errors={errors}>
-            <CertificationsSection control={control} register={register} errors={errors} />
-          </FormSection>
-        </Accordion>
+            <FormSection value="certifications" title="Certifications" icon={Award}>
+              <CertificationsSection />
+            </FormSection>
+          </Accordion>
 
-        <div className="mt-6 flex space-x-2">
-          <Button variant="outline" onClick={onCancel} className="flex-1">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            className="flex-1 bg-blue-500 text-white hover:bg-blue-600"
-          >
-            {mode === "create" ? "Create Portfolio" : "Update Portfolio"}
-          </Button>
+          <div className="mt-6 flex space-x-2">
+            <Button variant="outline" onClick={onCancel} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+              className="flex-1 bg-blue-500 text-white hover:bg-blue-600"
+            >
+              {mode === "create" ? "Create Portfolio" : "Update Portfolio"}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </FormProvider>
   );
 };
 
-const FormSection = ({ value, title, icon: Icon, errors, children }) => {
+const FormSection = ({ value, title, icon: Icon, children }) => {
+  const {
+    formState: { errors },
+  } = useFormContext();
+
   const hasError = !!errors[value];
 
   return (

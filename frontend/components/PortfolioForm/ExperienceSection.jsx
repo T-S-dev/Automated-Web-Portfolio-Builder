@@ -3,14 +3,22 @@
 import { useState } from "react";
 import axios from "axios";
 import { Sparkles, Trash2 } from "lucide-react";
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
 import AIEnhanceModal from "@/components/AiEnhanceModal";
 import { Button } from "@/components/ui/button";
 import RTEditor from "@/components/RTEditor";
 
-const ExperienceSection = ({ control, register, setValue, getValues, errors }) => {
+const ExperienceSection = () => {
+  const {
+    control,
+    register,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useFormContext();
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "experience",

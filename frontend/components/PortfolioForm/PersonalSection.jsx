@@ -1,6 +1,12 @@
 import { formatUrl } from "@/lib/utils";
+import { useFormContext } from "react-hook-form";
 
-const PersonalSection = ({ register, errors }) => {
+const PersonalSection = () => {
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext();
+
   return (
     <>
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">

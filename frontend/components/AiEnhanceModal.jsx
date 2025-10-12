@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const AIEnhanceModal = ({ open, onOpenChange, title, original, suggestion, onAccept }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

@@ -7,7 +7,7 @@ const SECTION_PROMPTS = {
   professional_summary: (text) =>
     `Rewrite this professional summary to be concise, achievement-oriented, and use active language:\n\n${text}`,
   experience_description: (text) =>
-    `Turn this experience description into 2–4 bullet points emphasizing action verbs and metrics. Output plain text with one bullet per line:\n\n${text}`,
+    `Turn this experience description into 2-4 bullet points emphasizing action verbs and metrics. Output plain text with one bullet per line:\n\n${text}`,
   project_description: (text) =>
     `Polish this project description into a few clear sentences focusing on problem, solution, and impact:\n\n${text}`,
 };

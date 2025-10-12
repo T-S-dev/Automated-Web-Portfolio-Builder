@@ -20,24 +20,23 @@ describe("LivePreview", () => {
   });
 
   test("calls notFound when not in iframe", () => {
-    Object.defineProperty(window, "top", { value: window, writable: true });
-    Object.defineProperty(window, "self", { value: window });
-
     render(<LivePreview />);
     expect(notFound).toHaveBeenCalled();
   });
 
   test("renders Loader initially", () => {
-    Object.defineProperty(window, "top", { value: {} });
-    Object.defineProperty(window, "self", { value: window });
+    Object.defineProperty(window, "self", {
+      value: { ...window.self, top: null },
+    });
 
     render(<LivePreview />);
     expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
   });
 
   test("renders correct template after receiving message", async () => {
-    Object.defineProperty(window, "top", { value: {} });
-    Object.defineProperty(window, "self", { value: window });
+    Object.defineProperty(window, "self", {
+      value: { ...window.self, top: null },
+    });
 
     render(<LivePreview />);
 
@@ -54,8 +53,9 @@ describe("LivePreview", () => {
   });
 
   test("renders default template if unknown template ID", async () => {
-    Object.defineProperty(window, "top", { value: {} });
-    Object.defineProperty(window, "self", { value: window });
+    Object.defineProperty(window, "self", {
+      value: { ...window.self, top: null },
+    });
 
     render(<LivePreview />);
 

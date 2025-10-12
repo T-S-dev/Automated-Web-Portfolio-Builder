@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { ExternalLink, X } from "lucide-react";
+import { useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { TemplateMappings } from "@/lib/TemplateMappings";
 
-const TemplateList = ({ getValues, setValue, errors }) => {
+const TemplateList = () => {
+  const {
+    getValues,
+    setValue,
+    formState: { errors },
+  } = useFormContext();
+
   const [previewTemplate, setPreviewTemplate] = useState(null);
   const [isLargeDevice, setIsLargeDevice] = useState(false);
 
@@ -71,7 +78,7 @@ const TemplateList = ({ getValues, setValue, errors }) => {
             if (!open) setPreviewTemplate(null);
           }}
         >
-          <DialogContent className="flex min-h-[90vh] min-w-[90vw] flex-col">
+          <DialogContent className="flex min-h-[90vh] min-w-[90vw] flex-col" showCloseButton={false}>
             <DialogHeader className="flex flex-row items-center justify-between">
               <DialogTitle className="text-2xl">Template {previewTemplate} Preview</DialogTitle>
               <div className="flex gap-2">

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { Sparkles, Trash2 } from "lucide-react";
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useFormContext } from "react-hook-form";
 import CreatableSelect from "react-select/creatable";
 import { toast } from "sonner";
 
@@ -14,7 +14,15 @@ import RTEditor from "@/components/RTEditor";
 import selectStyles from "@/lib/selectStyles";
 import { formatUrl, handleSelectKeyDown } from "@/lib/utils";
 
-const ProjectsSection = ({ control, register, setValue, getValues, errors }) => {
+const ProjectsSection = () => {
+  const {
+    control,
+    register,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useFormContext();
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "projects",

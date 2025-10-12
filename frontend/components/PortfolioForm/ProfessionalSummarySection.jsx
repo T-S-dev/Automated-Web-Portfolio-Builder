@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import axios from "axios";
+import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
 import AIEnhanceModal from "@/components/AiEnhanceModal";
@@ -9,7 +10,13 @@ import { Button } from "@/components/ui/button";
 import RTEditor from "@/components/RTEditor";
 import { Sparkles } from "lucide-react";
 
-const ProfessionalSummarySection = ({ setValue, getValues, errors }) => {
+const ProfessionalSummarySection = () => {
+  const {
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useFormContext();
+
   const [aiLoading, setAiLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [original, setOriginal] = useState("");

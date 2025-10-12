@@ -1,7 +1,13 @@
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useFormContext } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 
-const CertificationsSection = ({ control, register, errors }) => {
+const CertificationsSection = () => {
+  const {
+    control,
+    register,
+    formState: { errors },
+  } = useFormContext();
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "certifications",
