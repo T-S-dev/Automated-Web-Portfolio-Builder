@@ -1,4 +1,4 @@
-import { type Portfolio as BasePortfolio } from "@/lib/Zod/portfolioSchema";
+import { type Portfolio as BasePortfolio } from "@/shared/lib/Zod/portfolioSchema";
 
 export type Portfolio = BasePortfolio;
 
@@ -6,9 +6,8 @@ export type PortfolioDocument = Portfolio & {
   is_private: boolean;
   username: string;
   clerkId: string;
-  _id: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type DashboardPortfolio = {
