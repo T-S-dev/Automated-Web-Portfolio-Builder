@@ -3,8 +3,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
 
-import Header from "@/components/Header";
-
 export const metadata = {
   title: "Automated Web Portfolio Builder",
   description: "Generate a professional online portfolio from your resume.",
@@ -23,7 +21,6 @@ export default function RootLayout({
     >
       <html lang="en" suppressHydrationWarning>
         <body className="flex min-h-screen flex-col">
-          <Header />
           <Toaster
             position="bottom-right"
             richColors

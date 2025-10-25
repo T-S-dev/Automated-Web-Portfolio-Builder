@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 
-import { mongooseConnect } from "@/lib/mongoose";
-import Portfolio from "@/models/Portfolio";
+import { mongooseConnect } from "@/shared/lib/mongoose";
+import Portfolio from "@/shared/models/Portfolio";
 
 export async function POST(req: NextRequest) {
   try {
