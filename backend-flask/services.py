@@ -12,11 +12,15 @@ import json
 from docx import Document
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 from werkzeug.datastructures import FileStorage
 
+from exceptions import ParsingError, InvalidFileTypeError, EmptyFileError, OpenAIFailureError
+
 load_dotenv()
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ==============================
 # Pydantic Data Models
@@ -89,106 +93,127 @@ class ResumeData(BaseModel):
 # ==============================
 
 
-def extract_text_from_pdf(file):
+def _extract_text_from_pdf(file: FileStorage) -> str:
     """
-    Extracts text from a PDF resume.
+    Extract text from a PDF file.
+
+    This function reads a PDF file from a `FileStorage` object and returns
+    all non-empty text from each page as a single string separated by newline characters.
 
     Args:
-        file (FileStorage): PDF file object.
+        file (FileStorage): A file-like object representing the uploaded PDF file.
 
     Returns:
-        str: Extracted text from the PDF.   
-        dict: Error message if parsing fails.
+        str: The extracted text from the PDF file.
+
+    Raises:
+        EmptyFileError: If the PDF file contains no text.
+        InvalidFileTypeError: If the file is not a valid PDF or is corrupt.
     """
     try:
+        file.seek(0)
         with pdfplumber.open(file) as pdf:
-            text = '\n'.join(page.extract_text() for page in pdf.pages)
+            text = '\n'.join(page.extract_text()
+                             for page in pdf.pages if page.extract_text())
+        if not text.strip():
+            raise EmptyFileError(
+                "PDF file is empty or text could not be extracted.")
         return text
     except Exception as e:
-        error_message = str(e)
-        if "Is this really a PDF?" in error_message:
-            return {"error": "Invalid PDF file"}
-        else:
-            return {"error": "Unable to extract text from PDF"}
+        raise InvalidFileTypeError("Invalid or corrupt PDF file.") from e
 
 
-def extract_text_from_docx(file):
+def _extract_text_from_docx(file: FileStorage) -> str:
     """
-    Extracts text from a DOCX resume.
+    Extract text from a DOCX file.
 
-    Args:
-        file (FileStorage): DOCX file object.
+    This function reads a DOCX file from a `FileStorage` object and returns
+    all non-empty paragraphs as a single string separated by newline characters.
+
+    Parameters:
+        file (FileStorage): A file-like object representing the uploaded DOCX file.
 
     Returns:
-        str: Extracted text from the DOCX file.
-        dict: Error message if parsing fails.
+        str: The extracted text from the DOCX file.
+
+    Raises:
+        EmptyFileError: If the DOCX file contains no text or only empty paragraphs.
+        InvalidFileTypeError: If the file is not a valid DOCX or is corrupt.
+
     """
     try:
+        file.seek(0)
         doc = Document(file)
-        text = '\n'.join(para.text for para in doc.paragraphs)
+        text = '\n'.join(para.text for para in doc.paragraphs if para.text)
+        if not text.strip():
+            raise EmptyFileError(
+                "DOCX file is empty or text could not be extracted.")
         return text
     except Exception as e:
-        error_message = str(e)
-
-        if "File is not a zip file" in error_message:
-            return {"error": "Invalid DOCX file"}
-        else:
-            return {"error": "Unable to extract text from DOCX"}
+        raise InvalidFileTypeError("Invalid or corrupt DOCX file.") from e
 
 
-def extract_text(file):
+def _extract_text(file: FileStorage) -> str:
     """
     Determines file type and extracts text accordingly.
 
+    This function checks the file's mimetype and delegates the text
+    extraction to the appropriate specialized function (_extract_text_from_pdf
+    or _extract_text_from_docx).
+
     Args:
-        file (FileStorage): Uploaded resume file.
+        file (FileStorage): The uploaded file object to process.
 
     Returns:
-        str: Extracted text from the file.
-        dict: Error message for unsupported formats.
+        str: The extracted text from the file.
+
+    Raises:
+        ParsingError: If the file object is invalid (e.g., no mimetype).
+        InvalidFileTypeError: If the file mimetype is not one of the
+                            supported types (PDF or DOCX).
+        EmptyFileError: If the file is valid but contains no text.
     """
+    if not hasattr(file, "mimetype"):
+        raise ParsingError("File object has no mimetype attribute.")
 
-    try:
-        # Flask FileStorage object has a mimetype attribute
-        if hasattr(file, "mimetype"):
-            mimetype = file.mimetype
-        else:
-            return {"error": "File object has no mimetype attribute."}
+    if file.mimetype == "application/pdf":
+        return _extract_text_from_pdf(file)
+    elif file.mimetype == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return _extract_text_from_docx(file)
+    else:
+        raise InvalidFileTypeError(
+            "Unsupported file type. Please upload a PDF or DOCX file.")
 
-        if mimetype == "application/pdf":
-            return extract_text_from_pdf(file)
-        elif mimetype == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            return extract_text_from_docx(file)
-        else:
-            return {"error": "Unsupported file type. Please upload a PDF or DOCX file."}
-
-    except Exception:
-        return {"error": "Unexpected error processing file."}
 
 # ==============================
 # AI-Powered Resume Parsing
 # ==============================
 
 
-def resume_parser(file):
+def resume_parser(file: FileStorage) -> ResumeData:
     """
-    Parses resume text using OpenAI GPT-4o to extract structured information.
+    Parses resume text using OpenAI GPT-4o-mini to extract structured information.
+
+    This is the main service function that orchestrates text extraction
+    and AI-powered parsing. 
 
     Args:
-        file (FileStorage): Uploaded resume file.
+        file (FileStorage): The uploaded resume file (PDF or DOCX).
 
     Returns:
-        dict: Parsed structured resume data.
-    """
-    text = extract_text(file)
+        ResumeData: A Pydantic model (defined in this module) containing
+                    the structured resume data.
 
-    # Handle error from text extraction
-    if isinstance(text, dict) and "error" in text:
-        return text
+    Raises:
+        InvalidFileTypeError: If the file is not a valid PDF or DOCX, or is corrupt.
+        EmptyFileError: If the file is valid but contains no extractable text.
+        ParsingError: If the file object is invalid (e.g., missing mimetype).
+        OpenAIFailureError: If the OpenAI API call fails, times out, or
+                            returns data that does not match the ResumeData model.
+    """
 
     try:
-
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        text = _extract_text(file)
 
         prompt = '''
         You are an AI resume parser. Extract the following details from the given resume text:
@@ -213,13 +238,19 @@ def resume_parser(file):
             response_format=ResumeData,  # Enforce structured response
         )
 
-        json_string = response.choices[0].message.content
-        parsed_data = json.loads(json_string)
+        parsed_data = response.choices[0].message.parsed
+
+        if not parsed_data:
+            raise OpenAIFailureError("AI returned an empty response.")
 
         return parsed_data
 
-    except Exception:
-        return {"error": "Error parsing resume."}
+    except (InvalidFileTypeError, EmptyFileError, ParsingError) as e:
+        raise e
+    except ValidationError as e:
+        raise OpenAIFailureError(f"AI returned invalid data structure: {e}")
+    except Exception as e:
+        raise OpenAIFailureError(f"Error communicating with AI service: {e}")
 
 
 if __name__ == "__main__":

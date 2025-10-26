@@ -1,7 +1,10 @@
 import io
-import json
 import pytest
+from unittest.mock import Mock
 from app import app
+
+from exceptions import InvalidFileTypeError, OpenAIFailureError
+from services import ResumeData
 
 
 @pytest.fixture
@@ -9,6 +12,18 @@ def client():
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
+
+
+@pytest.fixture
+def mock_resume_data():
+    """Pytest fixture for a mock Pydantic ResumeData object."""
+    # We create a mock that has a .model_dump() method
+    mock_data = Mock(spec=ResumeData)
+    mock_data.model_dump.return_value = {
+        "personal": {"name": "John Doe"},
+        "professional_summary": "Experienced developer."
+    }
+    return mock_data
 
 
 def test_no_file_provided(client):
@@ -19,62 +34,68 @@ def test_no_file_provided(client):
     assert data.get("error") == "No file in the request"
 
 
-def test_unsupported_file_type(client):
-    """Test that uploading a file with an unsupported mimetype returns a 400 error."""
-    data = {
-        "file": (io.BytesIO(b"dummy content"), "dummy.txt", "text/plain")
-    }
+def test_unsupported_file_type(client, monkeypatch):
+    """Test that the API returns a 400 when the service raises InvalidFileTypeError."""
+    # Mock the resume_parser to raise the exception we expect
+    monkeypatch.setattr(
+        "app.resume_parser",
+        Mock(side_effect=InvalidFileTypeError("Unsupported file type."))
+    )
+
+    data = {"file": (io.BytesIO(b"dummy content"), "dummy.txt", "text/plain")}
     response = client.post('/parse-resume', data=data)
+
     assert response.status_code == 400
     data = response.get_json()
-    assert data.get(
-        "error") == "Unsupported file type. Please upload a PDF or DOCX file."
+    assert data.get("error") == "Unsupported file type."
 
 
-def test_resume_parser_error(client, monkeypatch):
-    """
-    Test that when resume_parser returns an error dict, the API returns a 500 status.
-    """
-    monkeypatch.setattr("app.resume_parser", lambda file: {
-                        "error": "Error parsing resume."})
+def test_resume_parser_ai_error(client, monkeypatch):
+    """Test that the API returns a 503 when the service raises OpenAIFailureError."""
+    monkeypatch.setattr(
+        "app.resume_parser",
+        Mock(side_effect=OpenAIFailureError("AI API is down."))
+    )
 
-    data = {
-        "file": (io.BytesIO(b"dummy content"), "resume.pdf", "application/pdf")
-    }
+    data = {"file": (io.BytesIO(b"dummy content"),
+                     "resume.pdf", "application/pdf")}
     response = client.post('/parse-resume', data=data)
+
+    assert response.status_code == 503
+    json_data = response.get_json()
+    assert json_data.get("error") == "AI API is down."
+
+
+def test_resume_parser_unexpected_error(client, monkeypatch):
+    """Test that the API returns a 500 for a generic Exception."""
+    monkeypatch.setattr(
+        "app.resume_parser",
+        Mock(side_effect=Exception("Something totally unexpected broke."))
+    )
+
+    data = {"file": (io.BytesIO(b"dummy content"),
+                     "resume.pdf", "application/pdf")}
+    response = client.post('/parse-resume', data=data)
+
     assert response.status_code == 500
     json_data = response.get_json()
-    assert json_data.get("error") == "Error parsing resume."
+    assert json_data.get("error") == "An unexpected server error occurred"
 
 
-def test_resume_parser_success(client, monkeypatch):
+def test_resume_parser_success(client, monkeypatch, mock_resume_data):
     """
     Test that a valid PDF file returns the expected structured JSON data.
     """
-    dummy_result = {
-        "personal": {
-            "name": "John Doe",
-            "job_title": "Software Developer",
-            "email": "john.doe@example.com",
-            "phone": "123-456-7890",
-            "linkedin": "linkedin.com/in/johndoe",
-            "github": "github.com/johndoe",
-            "location": "London"
-        },
-        "professional_summary": "Experienced developer.",
-        "education": [],
-        "experience": [],
-        "skills": {"technical": ["Python", "Flask"], "soft": ["Communication"]},
-        "projects": [],
-        "certifications": []
-    }
+    # Mock resume_parser to return the Pydantic model
+    monkeypatch.setattr("app.resume_parser", Mock(
+        return_value=mock_resume_data))
 
-    monkeypatch.setattr("app.resume_parser", lambda file: dummy_result)
-
-    data = {
-        "file": (io.BytesIO(b"dummy content"), "resume.pdf", "application/pdf")
-    }
+    data = {"file": (io.BytesIO(b"dummy content"),
+                     "resume.pdf", "application/pdf")}
     response = client.post('/parse-resume', data=data)
+
     assert response.status_code == 200
     json_data = response.get_json()
-    assert json_data == dummy_result
+
+    # Assert that the JSON data matches what our mock's .model_dump() returned
+    assert json_data == mock_resume_data.model_dump.return_value

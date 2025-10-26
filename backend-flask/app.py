@@ -1,22 +1,20 @@
-"""
-Flask API for parsing resumes.
-
-This API accepts a PDF or DOCX resume file, processes it using 'resume_parser',
-and returns structured resume data as JSON.
-
-"""
 import os
-from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from resume_parser import resume_parser
+from dotenv import load_dotenv
+
+from services import resume_parser
+from exceptions import ParsingError, InvalidFileTypeError, EmptyFileError, OpenAIFailureError
 
 load_dotenv()
 
 app = Flask(__name__)
 
+CORS_ORIGINS = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
 CORS(app, resources={
-     r"/*": {"origins": ["http://localhost:3000", os.getenv("FRONTEND_URL")]}})
+    r"/parse-resume": {"origins": CORS_ORIGINS.split(',')}
+})
 
 
 @app.route('/parse-resume', methods=['POST'])
@@ -37,28 +35,25 @@ def parse_resume_endpoint():
 
     file = request.files['file']
 
-    # Validate file type (only allow PDF and DOCX)
-    allowed_types = [
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ]
-    if file.mimetype not in allowed_types:
-        return jsonify({"error": "Unsupported file type. Please upload a PDF or DOCX file."}), 400
-
-    if file:
+    try:
         parsed_data = resume_parser(file)
 
-        # Handle any errors from the parser
-        if isinstance(parsed_data, dict) and "error" in parsed_data:
-            if parsed_data["error"] == "Invalid PDF file" or parsed_data["error"] == "Invalid DOCX file":
-                return jsonify(parsed_data), 400
-            else:
-                return jsonify(parsed_data), 500
+        return jsonify(parsed_data.model_dump()), 200
 
-        return jsonify(parsed_data), 200
-
-    return jsonify({"error": "Unable to parse resume"}), 500
+    except (InvalidFileTypeError, EmptyFileError) as e:
+        # 400 Bad Request for file-related issues
+        return jsonify({"error": str(e)}), 400
+    except OpenAIFailureError as e:
+        # 503 Service Unavailable for AI failures
+        return jsonify({"error": str(e)}), 503
+    except ParsingError as e:
+        # 422 Unprocessable Entity for general parsing errors
+        return jsonify({"error": str(e)}), 422
+    except Exception as e:
+        # General catch-all for any other unexpected errors
+        app.logger.error(f"Unexpected error: {e}")  # Log the full error
+        return jsonify({"error": "An unexpected server error occurred"}), 500
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
