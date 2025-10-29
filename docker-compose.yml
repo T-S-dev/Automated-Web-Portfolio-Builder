@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: ./backend-flask
+    env_file: ./backend-flask/.env
+    restart: always
+    # This service is not exposed to the public internet,
+    # only to other containers
+
+  frontend:
+    build: ./frontend
+    env_file: ./frontend/.env.production
+    restart: always
+    environment:
+      - FLASK_API_URL=http://backend:5000
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    # Mount custom config file into the container
+    volumes:
+      - ./nginx/frontend.conf:/etc/nginx/conf.d/frontend.conf:ro
+    depends_on:
+      - frontend
