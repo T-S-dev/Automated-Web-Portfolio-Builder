@@ -1,0 +1,124 @@
+name: CI/CD Pipeline (Build & Deploy)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # =============================
+  #      CONTINUOUS INTEGRATION
+  # =============================
+  ci-pipeline:
+    name: "1. Run Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Install Python Dependencies"
+        run: pip install -r backend-flask/requirements.txt
+      - name: "Run Flask Tests (pytest)"
+        working-directory: ./backend-flask
+        env:
+          OPENAI_API_KEY: "dummy_key"
+        run: pytest -m "not e2e"
+
+      - name: "Set up Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: "Install Node.js Dependencies"
+        working-directory: ./frontend
+        run: npm ci
+      - name: "Run Next.js Tests"
+        working-directory: ./frontend
+        run: npm test
+
+  # ==================================
+  #      BUILD & PUSH IMAGES
+  # ==================================
+  build-and-push:
+    name: "2. Build & Push Images"
+    needs: ci-pipeline
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      - name: "Log in to GitHub Container Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHP_PAT }}
+
+      - name: "Create .env file for Frontend build"
+        working-directory: ./frontend
+        run: |
+          echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}" >> .env.production
+          echo "NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ secrets.NEXT_PUBLIC_CLERK_SIGN_IN_URL }}" >> .env.production
+          echo "NEXT_PUBLIC_CLERK_SIGN_UP_URL=${{ secrets.NEXT_PUBLIC_CLERK_SIGN_UP_URL }}" >> .env.production
+          echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env.production
+          
+      - name: "Build and push backend image"
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend-flask
+          push: true
+          tags: ghcr.io/t-s-dev/automated-web-portfolio-builder-backend-flask:latest
+
+      - name: "Build and push frontend image"
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/t-s-dev/automated-web-portfolio-builder-frontend:latest
+
+  # =============================
+  #    CONTINUOUS DEPLOYMENT
+  # =============================
+  deploy-to-ec2:
+    name: "3. Deploy to EC2"
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Deploy to EC2"
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            cd Automated-Web-Portfolio-Builder
+
+            # Pull the latest code (to get the new docker-compose.yml)
+            git pull origin main
+
+            # Log in to GHCR on the EC2 server to pull private images
+            echo "${{ secrets.GHP_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
+            echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > backend-flask/.env
+            echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> backend-flask/.env
+
+            echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}" >> frontend/.env.production
+            echo "CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}" >> frontend/.env.production
+            echo "CLERK_WEBHOOK_SIGNING_SECRET=${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}" >> frontend/.env.production
+            echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> frontend/.env.production
+            echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> frontend/.env.production
+
+            # --- Pull new images and restart ---
+            docker compose pull
+
+            docker compose up -d
+
+            docker image prune -f
